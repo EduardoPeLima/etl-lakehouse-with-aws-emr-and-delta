@@ -3,15 +3,14 @@ import os
 from datetime import datetime
 import time
 
-ACCESS_KEY = os.getenv('AWS_ACCESS_KEY_CODE')
-SECRET_KEY = os.getenv('AWS_SECRET_KEY_CODE')
+#boto3 already consumes local variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in client
 BUCKET_NAME = os.getenv('AWS_BUCKET_NAME')
+
+print(BUCKET_NAME)
 
 def get_s3_client():
     s3_client = boto3.client(
-        "s3",
-        aws_access_key_id=ACCESS_KEY,
-        aws_secret_access_key=SECRET_KEY,
+        "s3"
     )
     print("Connected to AWS")
     return s3_client
