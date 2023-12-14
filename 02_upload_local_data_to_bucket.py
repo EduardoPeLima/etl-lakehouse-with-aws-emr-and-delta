@@ -33,14 +33,13 @@ def ensure_s3_bucket_exists(s3_client, BUCKET_NAME):
 def send_folder_files_to_s3(s3_client, BUCKET_NAME, folder_path):
     files = os.listdir(folder_path)
 
-    current_date = datetime.today().strftime("%Y%m%d")
-    current_hour = datetime.today().strftime("%H%M")
+    current_datetime = datetime.today().strftime("%Y%m%d%H%M%S")
 
     for file in files:
         file_path = os.path.join(folder_path, file)
 
         file_name = (file.replace('.csv','')).lower()
-        s3_client.upload_file(file_path, BUCKET_NAME, f'{file_name}_{current_date}_{current_hour}.csv')
+        s3_client.upload_file(file_path, BUCKET_NAME, f'ecommerce/{file_name}_{current_datetime}.csv')
         print(f'{file} uploaded to S3')
         time.sleep(10)
     

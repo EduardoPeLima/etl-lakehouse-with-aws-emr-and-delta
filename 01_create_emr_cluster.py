@@ -1,4 +1,4 @@
-import boto3 
+import boto3
 
 def get_emr_client():
     client = boto3.client(
@@ -7,7 +7,7 @@ def get_emr_client():
         )
     return client
 
-def get_emr_list():
+def get_emr_list(emr_client):
     response = emr_client.list_clusters(ClusterStates=['STARTING', 'BOOTSTRAPPING', 'RUNNING', 'WAITING'])
     for cluster in response['Clusters']:
         if (cluster['Name'] == 'emr_ecommerce_project'):
@@ -20,8 +20,7 @@ def create_emr_cluster(emr_client, cluster_name, release_label, num_instances, i
         Name=cluster_name,
         ReleaseLabel=release_label,
         Instances={
-            'MasterInstanceType': instance_type,
-            'SlaveInstanceType': instance_type,
+            'MasterInstanceType': instance_type, 'SlaveInstanceType': instance_type,
             'InstanceCount': num_instances,
             'KeepJobFlowAliveWhenNoSteps': True,
             'Ec2KeyName': key_pair_name,
@@ -37,38 +36,18 @@ def create_emr_cluster(emr_client, cluster_name, release_label, num_instances, i
 
     return response['JobFlowId']
 
-def add_emr_step(cluster_id, step_name, script_path):
-    emr_client = boto3.client('emr', region_name='us-east-1')
-
-    step_config = {
-        'Name': step_name,
-        'ActionOnFailure': 'CONTINUE', 
-        'HadoopJarStep': {
-            'Jar': 'command-runner.jar',
-            'Args': ['bash', '-c', f'sh {script_path}']
-        }
-    }
-
-    response = emr_client.add_job_flow_steps(
-        JobFlowId=cluster_id,
-        Steps=[step_config]
-    )
-
-    return response
-
 emr_client = get_emr_client()
-emr_cluster = get_emr_list()
+emr_ecommerce_cluster = get_emr_list(emr_client)
 
-if (emr_cluster == None):
+if (emr_ecommerce_cluster == None):
     print('Creating EMR Cluster')
     cluster_name = 'emr_ecommerce_project'
-    release_label = 'emr-6.0.0'  
+    release_label = 'emr-6.15.0'  
     num_instances = 1
     instance_type = 'm5.xlarge' 
     key_pair_name = 'key_pair_ecommerce_project' 
     log_uri = 's3://ecommerce-project-emr-logs'  
     cluster_id = create_emr_cluster(emr_client, cluster_name, release_label, num_instances, instance_type, key_pair_name, log_uri)
-    print(f'EMR Cluster {cluster_id} is being created.')
+    print(f'EMR Cluster {cluster_id} is being created')
 else:
-    print('Adding step job')
-    add_emr_step(emr_cluster['Id'], 'seila', 's3://ecommerce-project-control/hello.sh')
+    print('EMR Cluster emr_ecommerce_project already exists')
