@@ -15,21 +15,23 @@ def get_emr_list(emr_client):
             return cluster
     return None
 
-def add_emr_step(cluster_id, step_name, script_path):
+def add_emr_step(cluster_id, s3_script_path):
     emr_client = boto3.client('emr', region_name='us-east-1')
 
-    step_config = {
-        'Name': step_name,
-        'ActionOnFailure': 'CONTINUE', 
-        'HadoopJarStep': {
-            'Jar': 'command-runner.jar',
-            'Args': ['bash', '-c', f'sh {script_path}']
+    step = [
+        {
+            'Name': f'submiting spark job: {s3_script_path}',
+            'ActionOnFailure': 'CONTINUE', 
+            'HadoopJarStep': {
+                'Jar': 'command-runner.jar',
+                'Args': ['spark-submit', "--deploy-mode", "client", s3_script_path],
+            }
         }
-    }
+    ]
 
     response = emr_client.add_job_flow_steps(
         JobFlowId=cluster_id,
-        Steps=[step_config]
+        Steps=step
     )
 
     print('Step job added')
@@ -39,4 +41,4 @@ def add_emr_step(cluster_id, step_name, script_path):
 emr_client = get_emr_client()
 emr_ecommerce_cluster = get_emr_list(emr_client)
 
-add_emr_step(emr_ecommerce_cluster['Id'], 'seila', 's3://ecommerce-project-control/hello.sh')
+add_emr_step(emr_ecommerce_cluster['Id'], 's3://ecommerce-project-control/jupyter/jovyan/raw/0001_raw_customers.py')
