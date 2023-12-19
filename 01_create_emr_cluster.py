@@ -7,7 +7,7 @@ def get_emr_client():
         )
     return client
 
-def get_emr_list(emr_client):
+def get_emr_ecommerce_cluster(emr_client):
     response = emr_client.list_clusters(ClusterStates=['STARTING', 'BOOTSTRAPPING', 'RUNNING', 'WAITING'])
     for cluster in response['Clusters']:
         if (cluster['Name'] == 'emr_ecommerce_project'):
@@ -27,6 +27,9 @@ def create_emr_cluster(emr_client, cluster_name, release_label, num_instances, i
         },
         Applications=[
             {'Name': 'Spark'},
+            {'Name': 'Livy'},
+            {'Name': 'Hadoop'},
+            {'Name': 'JupyterHub'}
         ],
         VisibleToAllUsers=True,
         JobFlowRole='EMR_EC2_DefaultRole',
@@ -37,7 +40,7 @@ def create_emr_cluster(emr_client, cluster_name, release_label, num_instances, i
     return response['JobFlowId']
 
 emr_client = get_emr_client()
-emr_ecommerce_cluster = get_emr_list(emr_client)
+emr_ecommerce_cluster = get_emr_ecommerce_cluster(emr_client)
 
 if (emr_ecommerce_cluster == None):
     print('Creating EMR Cluster')
