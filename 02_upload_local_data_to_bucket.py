@@ -4,7 +4,7 @@ from datetime import datetime
 import time
 
 #boto3 already consumes local variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in client
-BUCKET_NAME = os.getenv('AWS_BUCKET_NAME')
+BUCKET_NAME = os.getenv('AWS_BUCKET_LANDZONE_NAME')
 
 print(BUCKET_NAME)
 
