@@ -3,7 +3,21 @@ from pyspark.sql import SparkSession
 from pyspark.sql import SQLContext
 from datetime import datetime, timedelta
 
-spark = SparkSession.builder.appName('0001_raw_customers').getOrCreate()
+spark = SparkSession.builder \
+    .appName('0001_raw_customers') \
+    .config("spark.jars.packages", \
+            "io.delta:delta-core_2.12:2.4.0") \
+    .config("spark.jars.packages", \
+            "io.delta:delta-storage-2.4.0") \
+    .config("spark.sql.extensions", \
+            "io.delta.sql.DeltaSparkSessionExtension") \
+    .config("spark.sql.catalog.spark_catalog",\
+            "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
+    .getOrCreate()
+
+spark.sparkContext.addPyFile("s3://spark-addons/"\
+                             +"delta-core_2.12-2.4.0.jar")
+
 sqlContext=SQLContext(spark.sparkContext)
 
 #prefix list
@@ -42,7 +56,6 @@ landzone_customers = spark.read.format(
     str_s3_landzone_file_path)
 
 landzone_customers.createOrReplaceTempView("landzone_customers")
-
 #landzone_customers.cache()
 #qtd=landzone_customers.count()
 #print('rows from landzone file: ', qtd)
@@ -73,7 +86,12 @@ raw_customers.createOrReplaceTempView('raw_customers')
 
 str_raw_path_file = f's3://{str_bucket_raw}/{str_raw_file_path}'
 
-raw_customers.coalesce(3).write.partitionBy('ref_day_partition','dt_file_extraction').parquet(str_raw_path_file,mode="append")
+raw_customers.write \
+    .partitionBy('ref_day_partition','dt_file_extraction_partition') \
+    .format("delta") \
+    .mode("append") \
+    .save(str_raw_path_file)
+
 print('file uploaded at: ', str_raw_path_file)
 
 control = spark.sql(
@@ -102,4 +120,10 @@ control = spark.sql(
 str_control_path = f's3://{str_bucket_control}/tb_0001_control_process_raw'
 print(str_control_path)
 
-control.coalesce(1).write.parquet(str_control_path,mode="append")
+
+control.write \
+    .format('delta') \
+    .mode('append') \
+    .save(str_control_path)
+
+print('Log appended to control')
