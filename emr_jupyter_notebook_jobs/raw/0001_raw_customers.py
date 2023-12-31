@@ -65,8 +65,8 @@ raw_customers = spark.sql(
         SELECT
         
             --default datalake metadata
-            int(date_format(current_date, 'yyyymmdd')) as ref_day,
-            int(date_format(current_date, 'yyyymmdd')) as ref_day_partition,
+            int(date_format(current_timestamp() - interval 3 hours, 'yyyyMMdd')) as ref_day,
+            int(date_format(current_timestamp() - interval 3 hours, 'yyyyMMdd')) as ref_day_partition,
             "{str_file_extract_datetime}" as dt_file_extraction,
             "{str_file_extract_datetime}" as dt_file_extraction_partition,
             
