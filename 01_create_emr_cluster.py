@@ -20,16 +20,44 @@ def create_emr_cluster(emr_client, cluster_name, release_label, num_instances, i
         Name=cluster_name,
         ReleaseLabel=release_label,
         Instances={
-            'MasterInstanceType': instance_type, 'SlaveInstanceType': instance_type,
+            'MasterInstanceType': instance_type, 
+            'SlaveInstanceType': instance_type,
             'InstanceCount': num_instances,
             'KeepJobFlowAliveWhenNoSteps': True,
             'Ec2KeyName': key_pair_name,
         },
-        Applications=[
-            {'Name': 'Spark'},
-            {'Name': 'Livy'},
-            {'Name': 'Hadoop'},
-            {'Name': 'JupyterHub'}
+        Configurations= [
+                {
+                    "Classification": "jupyter-s3-conf",
+                    "Properties": {
+                        "s3.persistence.enabled": "true",
+                        "s3.persistence.bucket": "ecommerce-project-control"
+                    }
+                }
+        ],
+        BootstrapActions=[
+        {
+            'Name': 'string',
+            'ScriptBootstrapAction': {
+                'Path': 's3://spark-addons/emr_bootstrap.sh',
+                'Args': []
+            }
+        },
+        ],
+        #we don't need to specify the applications versions, because we are already using a EMR release label
+        Applications=[ 
+            {
+                'Name': 'Spark',
+            },
+            {
+                'Name': 'Livy',
+            },
+            {
+                'Name': 'Hadoop',
+            },
+            {
+                'Name': 'JupyterHub',
+            }
         ],
         VisibleToAllUsers=True,
         JobFlowRole='EMR_EC2_DefaultRole',
