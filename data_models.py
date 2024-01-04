@@ -37,7 +37,7 @@ class DataModel():
             file_path = os.path.join(folder_path, file)
 
             file_name = (file.replace('.csv','')).lower()
-            self.S3_AWS_CLIENT.upload_file(file_path, self.INGESTION_BUCKET, f'ecommerce/{file_name}_{current_datetime}.csv')
+            self.S3_AWS_CLIENT.upload_file(file_path, self.INGESTION_BUCKET, f'ecommerce/{file_name.replace('.csv','')}/{file_name}_{current_datetime}.csv')
             print(f'{file} uploaded to S3')
         
         print('All files were uploaded to S3')
