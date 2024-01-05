@@ -1,7 +1,9 @@
 import re
+import os
+from datetime import datetime, timedelta
 from pyspark.sql import SparkSession
 from pyspark.sql import SQLContext
-from datetime import datetime, timedelta
+from pyspark.sql.functions import input_file_name
 
 spark = SparkSession.builder \
     .appName('0001_raw_customers') \
@@ -34,13 +36,7 @@ str_bucket_control = "ecommerce-project-control"
 dt_proc_brazilian = datetime.now() - timedelta(hours=3)
 str_proc_brazilian_datetime = dt_proc_brazilian.strftime("%Y%m%d%H%M%S")
 
-str_landzone_file_path = "ecommerce/olist_customers_dataset_20231214170632.csv"
-str_file_name = str_landzone_file_path.split("/")[-1]
-print(str_file_name)
-
-regex_file_extract_pattern = re.compile(r'(\d{14})')
-str_file_extract_datetime = regex_file_extract_pattern.search(str_file_name).group(1)
-print(str_file_extract_datetime)
+str_landzone_file_path = "ecommerce/olist_customers_dataset/"
 
 str_raw_file_path = "ecommerce/olist_customers_dataset"
 
@@ -67,15 +63,15 @@ raw_customers = spark.sql(
             --default datalake metadata
             int(date_format(current_timestamp() - interval 3 hours, 'yyyyMMdd')) as ref_day,
             int(date_format(current_timestamp() - interval 3 hours, 'yyyyMMdd')) as ref_day_partition,
-            "{str_file_extract_datetime}" as dt_file_extraction,
-            "{str_file_extract_datetime}" as dt_file_extraction_partition,
+            int(replace(reverse(substring_index(reverse(input_file_name()), '_', 1)),'.csv','')) as ref_file_extraction,
+            int(replace(reverse(substring_index(reverse(input_file_name()), '_', 1)),'.csv','')) as ref_file_extraction_partition,
             
             --file fields
-            customer_id,
-            customer_unique_id,
-            customer_zip_code_prefix,
-            customer_city,
-            customer_state
+            string(customer_id),
+            string(customer_unique_id),
+            string(customer_zip_code_prefix),
+            string(customer_city),
+            string(customer_state)
         FROM landzone_customers
     """
 )
@@ -87,7 +83,7 @@ raw_customers.createOrReplaceTempView('raw_customers')
 str_raw_path_file = f's3://{str_bucket_raw}/{str_raw_file_path}'
 
 raw_customers.write \
-    .partitionBy('ref_day_partition','dt_file_extraction_partition') \
+    .partitionBy('ref_day_partition','ref_file_extraction_partition') \
     .format("delta") \
     .mode("append") \
     .save(str_raw_path_file)
@@ -104,9 +100,9 @@ control = spark.sql(
             "{str_raw_file_path}" as str_target_file_path,
             ref_day as ref,
             ref_day_partition as ref_partition,
-            dt_file_extraction,
-            dt_file_extraction_partition,
-            "{str_proc_brazilian_datetime}" as dt_proc,
+            ref_file_extraction,
+            ref_file_extraction_partition,
+            int("{str_proc_brazilian_datetime}") as dt_proc,
             count(*) as nu_qtd_rows
         FROM raw_customers
         GROUP BY 1,2,3,4,5,6,7,8,9,10
@@ -120,10 +116,15 @@ control = spark.sql(
 str_control_path = f's3://{str_bucket_control}/tb_0001_control_process_raw'
 print(str_control_path)
 
-
 control.write \
     .format('delta') \
     .mode('append') \
     .save(str_control_path)
 
 print('Log appended to control')
+
+cmd=f'aws s3 rm {str_s3_landzone_file_path} --recursive > /dev/null'
+os.system(cmd)
+print('Processed landzone cleaned')
+
+
