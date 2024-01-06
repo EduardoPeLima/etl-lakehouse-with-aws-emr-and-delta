@@ -1,9 +1,8 @@
 import re
 import os
 from datetime import datetime, timedelta
-from pyspark.sql import SparkSession
-from pyspark.sql import SQLContext
-from pyspark.sql.functions import input_file_name
+from pyspark.sql import SparkSession, SQLContext
+from pyspark.sql.functions import input_file_name, col
 
 spark = SparkSession.builder \
     .appName('0001_raw_customers') \
@@ -63,8 +62,12 @@ raw_customers = spark.sql(
             --default datalake metadata
             int(date_format(current_timestamp() - interval 3 hours, 'yyyyMMdd')) as ref_day,
             int(date_format(current_timestamp() - interval 3 hours, 'yyyyMMdd')) as ref_day_partition,
-            int(replace(reverse(substring_index(reverse(input_file_name()), '_', 1)),'.csv','')) as ref_file_extraction,
-            int(replace(reverse(substring_index(reverse(input_file_name()), '_', 1)),'.csv','')) as ref_file_extraction_partition,
+            cast(
+                replace(reverse(substring_index(reverse(input_file_name()), '_', 1)),'.csv','') 
+            as long) as ref_file_extraction,
+            cast(
+                replace(reverse(substring_index(reverse(input_file_name()), '_', 1)),'.csv','')
+            as long) as ref_file_extraction_partition,
             
             --file fields
             string(customer_id),
@@ -85,7 +88,7 @@ str_raw_path_file = f's3://{str_bucket_raw}/{str_raw_file_path}'
 raw_customers.write \
     .partitionBy('ref_day_partition','ref_file_extraction_partition') \
     .format("delta") \
-    .mode("append") \
+    .mode("overwrite") \
     .save(str_raw_path_file)
 
 print('file uploaded at: ', str_raw_path_file)
