@@ -1,6 +1,6 @@
 import re
-from pyspark.sql import SparkSession
-from pyspark.sql import SQLContext
+from pyspark.sql import SparkSession, SQLContext
+from pyspark.sql.functions import lit, col
 from datetime import datetime, timedelta
 
 spark = SparkSession.builder \
@@ -18,7 +18,18 @@ spark = SparkSession.builder \
 spark.sparkContext.addPyFile("s3://spark-addons/"\
                              +"delta-core_2.12-2.4.0.jar")
 
+from delta.tables import *
+
 #sqlContext=SQLContext(spark.sparkContext)
+
+%%configure -f
+{
+  "conf": {
+    "spark.sql.extensions": "io.delta.sql.DeltaSparkSessionExtension",
+    "spark.sql.catalog.spark_catalog": "org.apache.spark.sql.delta.catalog.DeltaCatalog"
+    "spark.jars.packages": "io.delta:delta-storage-2.4.0"
+  }
+}
 
 #prefix list
 
@@ -40,6 +51,7 @@ str_s3_raw_file_path = f's3://{str_bucket_raw}/{key_file_path}'
 print(str_s3_raw_file_path)
 
 raw_customers = spark.read.format("delta").load(str_s3_raw_file_path)
+raw_customers = raw_customers.withColumn('join_key',lit(""))
 
 raw_customers.createOrReplaceTempView("raw_customers")
 
@@ -47,22 +59,8 @@ raw_customers.cache()
 qtd=raw_customers.count()
 print('rows from landzone file: ', qtd)
 
-raw_customers.show(5)
-
 #SCD2 will be utilized, and must happen a new register for a customer when his 
 #customer_zip_code_prefix, customer_city or customer_state has changed.
-
-str_s3_trusted_file_path = f's3://{str_bucket_trusted}/{key_file_path}'
-print(str_s3_trusted_file_path)
-
-trusted_customers_now = spark.read.format("delta").load(str_s3_trusted_file_path)
-print(trusted_customers_now)
-
-trusted_customers_now.createOrReplaceTempView("trusted_customers_now")
-
-trusted_customers_now.cache()
-qtd=trusted_customers_now.count()
-print('rows from trusted_customers_now: ', qtd)
 
 ##célula temporária para simular que a raw_customers tem uma alteração de cidade
 
@@ -70,12 +68,14 @@ raw_customers = spark.sql(
 """
     SELECT
         ref_day,
+        ref_day_partition,
         ref_file_extraction,
+        ref_file_extraction_partition,
         customer_id,
         customer_unique_id,
         customer_zip_code_prefix,
         case
-            when customer_id = "503840d4f2a1a7609f6489f44ffa9f7c" then "teste"
+            when customer_id = "503840d4f2a1a7609f6489f44ffa9f7c" then "teste2"
             else customer_city
         end as customer_city,
         customer_state
@@ -83,11 +83,42 @@ raw_customers = spark.sql(
 """
 )
 
-from delta.tables import *
+raw_customers.write\
+    .partitionBy('ref_day_partition','ref_file_extraction_partition') \
+    .format("delta") \
+    .mode("overwrite") \
+    .save(str_s3_raw_file_path)
 
-trusted_customers_scd2 = spark.sql(
+str_s3_trusted_file_path = f's3://{str_bucket_trusted}/{key_file_path}'
+print(str_s3_trusted_file_path)
+
+spark.sql(
 """
-    MERGE INTO trusted_customers_now
+select 
+    trusted.*,
+    raw.customer_id as rola,
+    raw.customer_city as teste
+from delta.`s3://ecommerce-project-trusted/ecommerce/olist_customers_dataset` as trusted
+left join delta.`s3://ecommerce-project-raw/ecommerce/olist_customers_dataset` as raw
+on raw.customer_id = trusted.customer_id
+where trusted.customer_id = "503840d4f2a1a7609f6489f44ffa9f7c"
+"""
+).show(5)
+
++--------+-------------------+--------------------+--------------------+------------------------+-------------+--------------+--------------------+--------------------+---------------+--------------------+------+
+| ref_day|ref_file_extraction|         customer_id|  customer_unique_id|customer_zip_code_prefix|customer_city|customer_state|       ts_start_date|         ts_end_date|flag_scd_active|                rola| teste|
++--------+-------------------+--------------------+--------------------+------------------------+-------------+--------------+--------------------+--------------------+---------------+--------------------+------+
+|20240104|               null|503840d4f2a1a7609...|ffc4233210eac4ec1...|                   14811|   araraquara|            SP|2024-01-05 02:15:...|2024-01-06 17:33:...|          false|503840d4f2a1a7609...|teste2|
+|20240104|               null|503840d4f2a1a7609...|ffc4233210eac4ec1...|                   14811|        teste|            SP|2024-01-06 17:06:...|2024-01-06 17:33:...|          false|503840d4f2a1a7609...|teste2|
+|20240104|               null|503840d4f2a1a7609...|ffc4233210eac4ec1...|                   14811|       teste2|            SP|2024-01-06 17:33:...|                null|           true|503840d4f2a1a7609...|teste2|
++--------+-------------------+--------------------+--------------------+------------------------+-------------+--------------+--------------------+--------------------+---------------+--------------------+------+
+
+trusted_customers_now = DeltaTable.forPath(
+        spark, str_s3_trusted_file_path)
+
+spark.sql(
+"""
+    MERGE INTO delta.`s3://ecommerce-project-trusted/ecommerce/olist_customers_dataset` as trusted
     USING
     (
         SELECT
@@ -111,7 +142,8 @@ trusted_customers_scd2 = spark.sql(
             raw.customer_city,
             raw.customer_state
         FROM raw_customers as raw
-        INNER JOIN trusted_customers_now as trusted ON raw.customer_id = trusted.customer_id
+        INNER JOIN delta.`s3://ecommerce-project-trusted/ecommerce/olist_customers_dataset` as trusted
+        ON raw.customer_id = trusted.customer_id
         WHERE
             (
             raw.customer_zip_code_prefix <> trusted.customer_zip_code_prefix 
@@ -119,13 +151,13 @@ trusted_customers_scd2 = spark.sql(
             OR raw.customer_state <> trusted.customer_state
             ) 
             AND trusted.flag_scd_active = True      
-    ) sub
-    ON sub.join_key = trusted_customers_now.customer_id
+    ) as sub
+    ON sub.join_key = trusted.customer_id
     WHEN MATCHED
     AND (
-        sub.customer_zip_code_prefix <> trusted_customers_now.customer_zip_code_prefix 
-        OR sub.customer_city <> trusted_customers_now.customer_city
-        OR sub.customer_state <> trusted_customers_now.customer_state
+        sub.customer_zip_code_prefix <> trusted.customer_zip_code_prefix 
+        OR sub.customer_city <> trusted.customer_city
+        OR sub.customer_state <> trusted.customer_state
     ) THEN UPDATE
     SET
         ts_end_date = current_timestamp(),
