@@ -12,7 +12,7 @@ def main():
     EMR_CLIENT = get_aws_clients.get_emr_client()
 
     data_model = DataModel(S3_AWS_CLIENT=S3_CLIENT, INGESTION_BUCKET=INGESTION_BUCKET)
-    data_model.ingest_local_data_to_s3()
+    #data_model.ingest_local_data_to_s3()
 
     cluster_name = "emr_ecommerce_project"
     release_label = "emr-6.15.0"
@@ -25,9 +25,11 @@ def main():
 
     submit_transform_jobs_to_emr = SubmitJobsToEMR(EMR_CLIENT, aws_emr_ecommerce_id)
     #raw
-    submit_transform_jobs_to_emr.add_spark_job_to_emr('s3://ecommerce-project-control/jupyter/jovyan/raw/0001_raw_customers.py')
+    #submit_transform_jobs_to_emr.add_spark_job_to_emr('s3://ecommerce-project-control/jupyter/jovyan/raw/0001_raw_customers.py')
 
     #trusted
+    submit_transform_jobs_to_emr.add_spark_job_to_emr('s3://ecommerce-project-control/jupyter/jovyan/trusted/0001_trusted_customers.py')
+
 
     #gold
     
