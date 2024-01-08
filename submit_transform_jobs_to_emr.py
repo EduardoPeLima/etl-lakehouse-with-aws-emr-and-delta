@@ -18,7 +18,13 @@ class SubmitJobsToEMR():
                 'ActionOnFailure': 'CONTINUE', 
                 'HadoopJarStep': {
                     'Jar': 'command-runner.jar',
-                    'Args': ['spark-submit', "--deploy-mode", "client", s3_script_path],
+                    'Args': [
+                        'spark-submit', 
+                        "--deploy-mode", "client", 
+                         "--conf", "spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension",
+                        "--conf", "spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog",
+                        s3_script_path
+                    ],
                 }
             }
         ]
