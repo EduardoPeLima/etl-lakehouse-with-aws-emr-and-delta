@@ -32,8 +32,8 @@ str_bucket_landzone = "ecommerce-project-landzone"
 str_bucket_raw = "ecommerce-project-raw"
 str_bucket_control = "ecommerce-project-control"
 
-dt_proc_brazilian = datetime.now() - timedelta(hours=3)
-str_proc_brazilian_datetime = dt_proc_brazilian.strftime("%Y%m%d%H%M%S")
+ts_proc = datetime.now()
+str_proc_timestamp = ts_proc.strftime("%Y%m%d%H%M%S")
 
 str_landzone_file_path = "ecommerce/olist_customers_dataset/"
 
@@ -60,8 +60,8 @@ raw_customers = spark.sql(
         SELECT
         
             --default datalake metadata
-            int(date_format(current_timestamp() - interval 3 hours, 'yyyyMMdd')) as ref_day,
-            int(date_format(current_timestamp() - interval 3 hours, 'yyyyMMdd')) as ref_day_partition,
+            int(date_format(current_timestamp(), 'yyyyMMdd')) as ref_day,
+            int(date_format(current_timestamp(), 'yyyyMMdd')) as ref_day_partition,
             cast(
                 replace(reverse(substring_index(reverse(input_file_name()), '_', 1)),'.csv','') 
             as long) as ref_file_extraction,
@@ -88,7 +88,7 @@ str_raw_path_file = f's3://{str_bucket_raw}/{str_raw_file_path}'
 raw_customers.write \
     .partitionBy('ref_day_partition','ref_file_extraction_partition') \
     .format("delta") \
-    .mode("overwrite") \
+    .mode("append") \
     .save(str_raw_path_file)
 
 print('file uploaded at: ', str_raw_path_file)
@@ -105,7 +105,7 @@ control = spark.sql(
             ref_day_partition as ref_partition,
             ref_file_extraction,
             ref_file_extraction_partition,
-            int("{str_proc_brazilian_datetime}") as dt_proc,
+            int("{str_proc_timestamp}") as dt_proc,
             count(*) as nu_qtd_rows
         FROM raw_customers
         GROUP BY 1,2,3,4,5,6,7,8,9,10
@@ -129,5 +129,3 @@ print('Log appended to control')
 cmd=f'aws s3 rm {str_s3_landzone_file_path} --recursive > /dev/null'
 os.system(cmd)
 print('Processed landzone cleaned')
-
-
