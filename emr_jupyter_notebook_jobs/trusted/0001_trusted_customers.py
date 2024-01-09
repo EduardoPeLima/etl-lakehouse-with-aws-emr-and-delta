@@ -18,8 +18,6 @@ spark = SparkSession.builder \
 spark.sparkContext.addPyFile("s3://spark-addons/"\
                              +"delta-core_2.12-2.4.0.jar")
 
-from delta import *
-
 #prefix list
 
 #dt: datetime
@@ -31,8 +29,9 @@ str_bucket_raw = "ecommerce-project-raw"
 str_bucket_trusted = "ecommerce-project-trusted"
 str_bucket_control = "ecommerce-project-control"
 
-dt_proc_brazilian = datetime.now() - timedelta(hours=3)
-str_proc_brazilian_datetime = dt_proc_brazilian.strftime("%Y%m%d%H%M%S")
+ts_proc = datetime.now()
+str_proc_timestamp = ts_proc.strftime("%Y%m%d%H%M%S")
+__REFDAY__ = int(ts_proc.strftime("%Y%m%d"))
 
 key_file_path = "ecommerce/olist_customers_dataset"
 
@@ -54,40 +53,65 @@ str_s3_trusted_file_path = f's3://{str_bucket_trusted}/{key_file_path}'
 print(str_s3_trusted_file_path)
 
 merge = spark.sql(
-"""
+f"""
     MERGE INTO delta.`s3://ecommerce-project-trusted/ecommerce/olist_customers_dataset` as trusted
     USING
     (
-        SELECT
-            raw.customer_id as join_key,
-            raw.ref_day,
-            raw.ref_file_extraction,
-            raw.customer_id,
-            raw.customer_unique_id,
-            raw.customer_zip_code_prefix,
-            raw.customer_city,
-            raw.customer_state
-        FROM raw_customers as raw
+        SELECT 
+            *
+        FROM 
+        (
+            SELECT
+                raw.customer_id as join_key,
+                raw.ref_day,
+                raw.ref_file_extraction,
+                raw.customer_id,
+                raw.customer_unique_id,
+                raw.customer_zip_code_prefix,
+                raw.customer_city,
+                raw.customer_state,
+                ROW_NUMBER() OVER (PARTITION BY raw.customer_id ORDER BY raw.ref_file_extraction DESC) as row_num
+            FROM raw_customers as raw
+            INNER JOIN delta.`s3://ecommerce-project-trusted/ecommerce/olist_customers_dataset` as trusted
+            ON raw.customer_id = trusted.customer_id
+            WHERE 
+                raw.ref_day_partition = {__REFDAY__}
+                AND raw.ref_file_extraction > trusted.ref_file_extraction
+        )
+        WHERE row_num = 1
+        
         UNION ALL
+        
         SELECT
-            NULL as join_key,
-            raw.ref_day,
-            raw.ref_file_extraction,
-            raw.customer_id,
-            raw.customer_unique_id,
-            raw.customer_zip_code_prefix,
-            raw.customer_city,
-            raw.customer_state
-        FROM raw_customers as raw
-        INNER JOIN delta.`s3://ecommerce-project-trusted/ecommerce/olist_customers_dataset` as trusted
-        ON raw.customer_id = trusted.customer_id
-        WHERE
-            (
-            raw.customer_zip_code_prefix <> trusted.customer_zip_code_prefix 
-            OR raw.customer_city <> trusted.customer_city
-            OR raw.customer_state <> trusted.customer_state
-            ) 
-            AND trusted.flag_scd_active = True      
+            *
+        FROM
+        (
+            SELECT
+                NULL as join_key,
+                raw.ref_day,
+                raw.ref_file_extraction,
+                raw.customer_id,
+                raw.customer_unique_id,
+                raw.customer_zip_code_prefix,
+                raw.customer_city,
+                raw.customer_state,
+                ROW_NUMBER() OVER (PARTITION BY raw.customer_id ORDER BY raw.ref_file_extraction DESC) as row_num
+            FROM raw_customers as raw
+            INNER JOIN delta.`s3://ecommerce-project-trusted/ecommerce/olist_customers_dataset` as trusted
+            ON raw.customer_id = trusted.customer_id
+            WHERE
+                raw.ref_day_partition = {__REFDAY__}
+                AND
+                    (
+                    raw.customer_zip_code_prefix <> trusted.customer_zip_code_prefix 
+                    OR raw.customer_city <> trusted.customer_city
+                    OR raw.customer_state <> trusted.customer_state
+                    ) 
+                AND trusted.flag_scd_active = True
+                AND raw.ref_file_extraction > trusted.ref_file_extraction
+        )
+        WHERE row_num = 1
+            
     ) as sub
     ON sub.join_key = trusted.customer_id
     AND trusted.flag_scd_active = True
@@ -132,6 +156,7 @@ merge = spark.sql(
 merge.createOrReplaceTempView("merge")
 
 print("merge completed from raw to trusted")
+print(merge.show())
 
 control = spark.sql(
     f"""
@@ -141,7 +166,7 @@ control = spark.sql(
             '0001_trusted_customers' as str_process, 
             "{str_s3_raw_file_path}" as str_origin_file_path,
             "{str_s3_trusted_file_path}" as str_target_file_path,
-            int("{str_proc_brazilian_datetime}") as dt_proc,
+            int("{str_proc_timestamp}") as dt_proc,
             num_affected_rows,
             num_updated_rows,
             num_deleted_rows,
