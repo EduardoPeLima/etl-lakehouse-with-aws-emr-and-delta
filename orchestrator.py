@@ -25,10 +25,14 @@ def main():
 
     submit_transform_jobs_to_emr = SubmitJobsToEMR(EMR_CLIENT, aws_emr_ecommerce_id)
     #raw
-    #submit_transform_jobs_to_emr.add_spark_job_to_emr('s3://ecommerce-project-control/jupyter/jovyan/raw/0001_raw_customers.py')
+    submit_transform_jobs_to_emr.add_spark_job_to_emr('s3://ecommerce-project-control/jupyter/jovyan/raw/0001_raw_customers.py')
+    submit_transform_jobs_to_emr.add_spark_job_to_emr('s3://ecommerce-project-control/jupyter/jovyan/raw/0002_raw_orders.py')
+    submit_transform_jobs_to_emr.add_spark_job_to_emr('s3://ecommerce-project-control/jupyter/jovyan/raw/0003_raw_order_items.py')
+    submit_transform_jobs_to_emr.add_spark_job_to_emr('s3://ecommerce-project-control/jupyter/jovyan/raw/0004_raw_order_payments.py')
+    submit_transform_jobs_to_emr.add_spark_job_to_emr('s3://ecommerce-project-control/jupyter/jovyan/raw/0005_raw_products.py')
 
     #trusted
-    submit_transform_jobs_to_emr.add_spark_job_to_emr('s3://ecommerce-project-control/jupyter/jovyan/trusted/0001_trusted_customers.py')
+    #submit_transform_jobs_to_emr.add_spark_job_to_emr('s3://ecommerce-project-control/jupyter/jovyan/trusted/0001_trusted_customers.py')
 
 
     #gold
