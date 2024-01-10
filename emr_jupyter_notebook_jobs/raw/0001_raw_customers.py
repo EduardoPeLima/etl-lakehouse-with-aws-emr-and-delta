@@ -129,3 +129,5 @@ print('Log appended to control')
 cmd=f'aws s3 rm {str_s3_landzone_file_path} --recursive > /dev/null'
 os.system(cmd)
 print('Processed landzone cleaned')
+
+
