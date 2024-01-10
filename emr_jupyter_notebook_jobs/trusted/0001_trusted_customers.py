@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import re
 
 spark = SparkSession.builder \
-    .appName('0001_raw_customers') \
+    .appName('0001_trusted_customers') \
     .config("spark.jars.packages", \
             "io.delta:delta-core_2.12:2.4.0") \
     .config("spark.jars.packages", \
@@ -41,13 +41,6 @@ print(str_s3_raw_file_path)
 raw_customers = spark.read.format("delta").load(str_s3_raw_file_path)
 
 raw_customers.createOrReplaceTempView("raw_customers")
-
-#raw_customers.cache()
-#qtd=raw_customers.count()
-#print('rows from landzone file: ', qtd)
-
-#SCD2 will be utilized, and must happen a new register for a customer when his 
-#customer_zip_code_prefix, customer_city or customer_state has changed.
 
 str_s3_trusted_file_path = f's3://{str_bucket_trusted}/{key_file_path}'
 print(str_s3_trusted_file_path)
