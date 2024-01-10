@@ -5,7 +5,7 @@ from pyspark.sql import SparkSession, SQLContext
 from pyspark.sql.functions import input_file_name, col
 
 spark = SparkSession.builder \
-    .appName('0002_raw_geolocation') \
+    .appName('0005_raw_products') \
     .config("spark.jars.packages", \
             "io.delta:delta-core_2.12:2.4.0") \
     .config("spark.jars.packages", \
@@ -18,8 +18,6 @@ spark = SparkSession.builder \
 
 spark.sparkContext.addPyFile("s3://spark-addons/"\
                              +"delta-core_2.12-2.4.0.jar")
-
-sqlContext=SQLContext(spark.sparkContext)
 
 #prefix list
 
@@ -35,14 +33,14 @@ str_bucket_control = "ecommerce-project-control"
 ts_proc = datetime.now()
 str_proc_timestamp = ts_proc.strftime("%Y%m%d%H%M%S")
 
-str_landzone_file_path = "ecommerce/olist_geolocation_dataset/"
+str_landzone_file_path = "ecommerce/olist_products_dataset/"
 
-str_raw_file_path = "ecommerce/olist_geolocation_dataset"
+str_raw_file_path = "ecommerce/olist_products_dataset"
 
 str_s3_landzone_file_path = f's3://{str_bucket_landzone}/{str_landzone_file_path}'
 print(str_s3_landzone_file_path)
 
-landzone_geolocation = spark.read.format(
+landzone_products = spark.read.format(
     "com.databricks.spark.csv").option(
     "header","true").option(
     "encoding","UTF-8").option(
@@ -50,11 +48,9 @@ landzone_geolocation = spark.read.format(
     "delimiter",",").load(
     str_s3_landzone_file_path)
 
-landzone_geolocation.createOrReplaceTempView("landzone_geolocation")
+landzone_products.createOrReplaceTempView("landzone_products")
 
-landzone_geolocation.columns
-
-raw_geolocation = spark.sql(
+raw_products = spark.sql(
     f"""
         SELECT
         
@@ -69,22 +65,24 @@ raw_geolocation = spark.sql(
             as long) as ref_file_extraction_partition,
             
             --file fields
-            string(geolocation_zip_code_prefix),
-            string(geolocation_lat),
-            string(geolocation_lng),
-            string(geolocation_city), 
-            string(geolocation_state)
-        FROM landzone_geolocation
+            string(product_id),
+            string(product_category_name),
+            string(product_name_lenght),
+            string(product_description_lenght),
+            string(product_photos_qty),
+            string(product_weight_g),
+            string(product_length_cm),
+            string(product_height_cm),
+            string(product_width_cm)
+        FROM landzone_products
     """
 )
 
-raw_geolocation.createOrReplaceTempView('raw_geolocation')
-#raw_geolocation.cache()
-#raw_geolocation.count()
+raw_products.createOrReplaceTempView('raw_products')
 
 str_raw_path_file = f's3://{str_bucket_raw}/{str_raw_file_path}'
 
-raw_geolocation.write \
+raw_products.write \
     .partitionBy('ref_day_partition','ref_file_extraction_partition') \
     .format("delta") \
     .mode("append") \
@@ -97,7 +95,7 @@ control = spark.sql(
         SELECT
             "{str_bucket_landzone}" as str_origin_zone,
             "{str_bucket_raw}" as str_target_zone,
-            '0001_raw_geolocation' as str_process, 
+            '0005_raw_products' as str_process, 
             "{str_landzone_file_path}" as str_origin_file_path,
             "{str_raw_file_path}" as str_target_file_path,
             ref_day as ref,
@@ -106,7 +104,7 @@ control = spark.sql(
             ref_file_extraction_partition,
             int("{str_proc_timestamp}") as dt_proc,
             count(*) as nu_qtd_rows
-        FROM raw_geolocation
+        FROM raw_products
         GROUP BY 1,2,3,4,5,6,7,8,9,10
     """
 )
