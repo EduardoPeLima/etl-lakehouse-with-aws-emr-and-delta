@@ -45,27 +45,12 @@ raw_order_payments.createOrReplaceTempView("raw_order_payments")
 str_s3_trusted_file_path = f's3://{str_bucket_trusted}/{key_file_path}'
 print(str_s3_trusted_file_path)
 
-qtd_lines_operation = spark.sql(
-f"""
-        SELECT
-            int(count(*)) as count
-        FROM raw_order_payments as raw
-        WHERE 
-            ref_day_partition = {__REFDAY__}
-            and raw.order_id NOT IN
-            (
-                SELECT DISTINCT order_id FROM delta.`s3://ecommerce-project-trusted/ecommerce/olist_order_payments_dataset/`
-            )
-"""
-)
+__REFDAY__ = 20240110
 
-qtd_lines = qtd_lines_operation.collect()[0][0]
-print("inserted rows: ", qtd_lines)
-
-spark.sql(
+merge = spark.sql(
 f"""
-    INSERT INTO delta.`s3://ecommerce-project-trusted/ecommerce/olist_order_payments_dataset/`
-    (
+    MERGE INTO delta.`s3://ecommerce-project-trusted/ecommerce/olist_order_payments_dataset/` AS target
+    USING (
         SELECT
             ref_day,
             ref_file_extraction,
@@ -74,18 +59,35 @@ f"""
             payment_type,
             int(payment_installments) as nu_payment_installments,
             cast(payment_value as float) as nu_payment_value
-        FROM raw_order_payments as raw
-        WHERE 
-            ref_day_partition = {__REFDAY__}
-            and raw.order_id NOT IN
-            (
-                SELECT DISTINCT order_id FROM delta.`s3://ecommerce-project-trusted/ecommerce/olist_order_payments_dataset/`
-            )
-    )
+        FROM raw_order_payments
+        WHERE ref_day_partition = {__REFDAY__}
+    ) AS source
+    ON target.order_id = source.order_id
+    WHEN NOT MATCHED THEN
+        INSERT (
+            ref_day,
+            ref_file_extraction,
+            order_id,
+            nu_payment_sequential,
+            payment_type,
+            nu_payment_installments,
+            nu_payment_value
+        ) VALUES (
+            source.ref_day,
+            source.ref_file_extraction,
+            source.order_id,
+            source.nu_payment_sequential,
+            source.payment_type,
+            source.nu_payment_installments,
+            source.nu_payment_value
+        )
 """
 )
 
-print('inserted new orders data from trusted')
+merge.createOrReplaceTempView("merge")
+
+print("merge completed from raw to trusted")
+print(merge.show())
 
 control = spark.sql(
     f"""
@@ -99,7 +101,8 @@ control = spark.sql(
             null as num_affected_rows,
             null as num_updated_rows,
             null as num_deleted_rows,
-            cast({qtd_lines} as long) as num_inserted_rows
+            num_inserted_rows
+        FROM merge
     """
 )
 
@@ -112,3 +115,5 @@ control.write \
     .save(str_control_path)
 
 print('Log appended to control')
+
+
