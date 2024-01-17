@@ -33,8 +33,6 @@ ts_proc = datetime.now()
 str_proc_timestamp = ts_proc.strftime("%Y%m%d%H%M%S")
 __REFDAY__ = int(ts_proc.strftime("%Y%m%d"))
 
-__REFDAY__ = 20240110
-
 key_file_path = "ecommerce/olist_products_dataset"
 
 str_s3_raw_file_path = f's3://{str_bucket_raw}/{key_file_path}'
@@ -52,20 +50,25 @@ f"""
 MERGE INTO delta.`s3://ecommerce-project-trusted/ecommerce/olist_products_dataset/` AS target
 USING (
     SELECT
-        ref_day,
-        ref_file_extraction,
-        product_id,
-        product_category_name,
-        int(product_name_lenght) as nu_product_name_lenght,
-        int(product_description_lenght) as nu_product_description_lenght,
-        int(product_photos_qty) as nu_product_photos_qty,
-        cast(product_weight_g as float) as nu_product_weight_g,
-        cast(product_length_cm as float) as nu_product_length_cm,
-        cast(product_height_cm as float) as nu_product_height_cm,
-        cast(product_width_cm as float) as nu_product_width_cm
-    FROM raw_products as raw
-    WHERE 
-        ref_day_partition = '{__REFDAY__}'
+        *
+    (
+        SELECT
+            ref_day,
+            ref_file_extraction,
+            product_id,
+            product_category_name,
+            int(product_name_lenght) as nu_product_name_lenght,
+            int(product_description_lenght) as nu_product_description_lenght,
+            int(product_photos_qty) as nu_product_photos_qty,
+            cast(product_weight_g as float) as nu_product_weight_g,
+            cast(product_length_cm as float) as nu_product_length_cm,
+            cast(product_height_cm as float) as nu_product_height_cm,
+            cast(product_width_cm as float) as nu_product_width_cm,
+            ROW_NUMBER() OVER (PARTITION BY raw.product_id ORDER BY raw.ref_file_extraction DESC) as row_num
+            FROM raw_products as raw
+            WHERE ref_day_partition = '{__REFDAY__}'
+    )
+    WHERE row_num = 1
 ) AS source
 ON target.product_id = source.product_id
 WHEN NOT MATCHED THEN

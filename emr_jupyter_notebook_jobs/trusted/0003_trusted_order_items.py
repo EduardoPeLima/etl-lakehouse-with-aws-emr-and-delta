@@ -51,17 +51,23 @@ merge = spark.sql(
 f"""
     MERGE INTO delta.`s3://ecommerce-project-trusted/ecommerce/olist_order_items_dataset/` AS target
     USING (
-        SELECT
-            ref_day,
-            ref_file_extraction,
-            order_id,
-            cast(order_item_id as integer) as order_item_id,
-            product_id,
-            cast(shipping_limit_date as timestamp) as ts_shipping_limit,
-            cast(price as float) as nu_price,
-            cast(freight_value as float) as nu_freight_value
-        FROM raw_order_items
-        WHERE ref_day_partition = {__REFDAY__}
+        SELECT 
+            *
+        FROM (
+            SELECT
+                ref_day,
+                ref_file_extraction,
+                order_id,
+                cast(order_item_id as integer) as order_item_id,
+                product_id,
+                cast(shipping_limit_date as timestamp) as ts_shipping_limit,
+                cast(price as float) as nu_price,
+                cast(freight_value as float) as nu_freight_value,
+                ROW_NUMBER() OVER (PARTITION BY raw.order_id ORDER BY raw.ref_file_extraction DESC) as row_num
+            FROM raw_order_items as raw
+            WHERE ref_day_partition = {__REFDAY__}
+        )
+        WHERE row_num = 1
     ) AS source
     ON target.order_id = source.order_id
     WHEN NOT MATCHED THEN

@@ -52,15 +52,21 @@ f"""
     MERGE INTO delta.`s3://ecommerce-project-trusted/ecommerce/olist_order_payments_dataset/` AS target
     USING (
         SELECT
+            *
+        (
+        SELECT
             ref_day,
             ref_file_extraction,
             order_id,
             int(payment_sequential) as nu_payment_sequential,
             payment_type,
             int(payment_installments) as nu_payment_installments,
-            cast(payment_value as float) as nu_payment_value
-        FROM raw_order_payments
+            cast(payment_value as float) as nu_payment_value,
+            ROW_NUMBER() OVER (PARTITION BY raw.order_id ORDER BY raw.ref_file_extraction DESC) as row_num
+        FROM raw_order_payments as raw
         WHERE ref_day_partition = {__REFDAY__}
+        )
+        WHERE row_num = 1
     ) AS source
     ON target.order_id = source.order_id
     WHEN NOT MATCHED THEN
