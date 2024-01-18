@@ -19,6 +19,7 @@ A Python script called "orchestrator.py" is responsible to orchestrate the inges
     <li>Then, our AWS EMR Cluster with Spark, JupyterHub, Livy and Hadoop is created. The Delta Lake is not a simple option to use at EMR when creating it, so for our orchestrator it is necessary to execute a boostrap action to copy the Delta Core and Storage JARS from our S3 and install him correctly in our cluster.</li>
     <li>The cluster creation take time, and because of that, it is necessary to our orchestrator create and monitoring until the cluster is totally created.</li>
     <li>When the orchestrator checks that the cluster is created and waiting to jobs, it submits our spark jobs saved in S3 to the cluster and the data transformations really begins. The raw jobs collect data from landzone and append in raw zone, reading the data from raw zone and merging in silver to only new data and then at refined creating star schemas and aggregated tables.</li>
+    
 ![Spark Jobs](imgs/emr_spark_jobs.png)
 </ul>
 
