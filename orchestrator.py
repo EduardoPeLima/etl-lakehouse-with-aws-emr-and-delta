@@ -12,7 +12,7 @@ def main():
     EMR_CLIENT = get_aws_clients.get_emr_client()
 
     data_model = DataModel(S3_AWS_CLIENT=S3_CLIENT, INGESTION_BUCKET=INGESTION_BUCKET)
-    #data_model.ingest_local_data_to_s3()
+    data_model.ingest_local_data_to_s3()
 
     cluster_name = "emr_ecommerce_project"
     release_label = "emr-6.15.0"
