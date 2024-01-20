@@ -38,7 +38,7 @@ def main():
     submit_transform_jobs_to_emr.add_spark_job_to_emr('s3://ecommerce-project-control/jupyter/jovyan/trusted/0004_trusted_order_payments.py')
     submit_transform_jobs_to_emr.add_spark_job_to_emr('s3://ecommerce-project-control/jupyter/jovyan/trusted/0005_trusted_products.py')
 
-    #gold: dimensional table and aggregate tables
+    #refined: dimensional table and aggregate tables
     submit_transform_jobs_to_emr.add_spark_job_to_emr('s3://ecommerce-project-control/jupyter/jovyan/refined/0001_dw_dim_products.py')
     submit_transform_jobs_to_emr.add_spark_job_to_emr('s3://ecommerce-project-control/jupyter/jovyan/refined/0002_dw_dim_location.py')
     submit_transform_jobs_to_emr.add_spark_job_to_emr('s3://ecommerce-project-control/jupyter/jovyan/refined/0003_dw_dim_customers.py')
