@@ -2,6 +2,8 @@
 ### Intro
 <p>
 This project utilizes data obtained from Kaggle, specifically a Brazilian ecommerce public dataset of orders made at Olist Store. The dataset encompasses information from 100,000 orders spanning the years 2016 to 2018, originating from various marketplaces in Brazil. The dataset's rich features enable the exploration of orders from multiple perspectives, including location, customers, and products. It's important to note that this dataset contains genuine commercial data that has undergone anonymization for privacy and confidentiality purposes.
+<br>
+<a href="https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce">Here you can acess the Kaggle Brazilian Ecommerce Dataset</a>
 </p>
 <p>
 The selected data stack is widely recognized and established within the industry. Our goal is to construct a robust Data Lakehouse by harnessing services from AWS (Amazon Web Services) and Delta Lake, a technology initially developed by Databricks and now available as an open-source project. This strategic combination of tools and platforms ensures a powerful and scalable infrastructure.</p>
