@@ -24,12 +24,13 @@ A Python script called "orchestrator.py" is responsible to orchestrate the inges
     <i>In raw zone and so on, the data are already saved in Delta format, enabling ACID transactions, schema enforcement, time travel etc.</i>
 </ul>
 
-![Spark Jobs](imgs/emr_spark_jobs.png)
+![Spark Jobs](imgs/emr_spark_jobs_raw_trusted.png.png)
 
-    <li>After the trusted zone is completely processed, the refined sparks jobs starts, creating the star schema tables (dimensions with SCD 1, SCD 2 and facts) and aggregated tables.</li>
+<ul>
+<li>After the trusted zone is completely processed, the refined sparks jobs starts, creating the star schema tables (dimensions with SCD 1, SCD 2 and facts) and aggregated tables from the trusted tables.</li>
+</ul>
 
-
-
+![Spark Jobs](imgs/emr_spark_jobs_refined.png)
 
 ### Serving to our end-users the trusted and refined data
 <p>
