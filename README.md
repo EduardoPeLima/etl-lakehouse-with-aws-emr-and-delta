@@ -13,7 +13,7 @@ The selected data stack is widely recognized and established within the industry
 ### Data Pipeline
 #### Orchestrator
 <p>
-    In our data pipeline, the orchestration of ingestion and Spark transformation jobs is managed by a Python script named "orchestrator.py." This script plays a pivotal role in coordinating and executing various tasks, ensuring the smooth flow and processing of data throughout the pipeline.
+    In our data pipeline, the orchestration of ingestion and Spark transformation jobs is managed by a Python script named "orchestrator.py". This script plays a pivotal role in coordinating and executing various tasks, ensuring the smooth flow and processing of data throughout the pipeline.
 </p>
 <p>
 The use of the "boto3" library and Object-Oriented Programming (OOP) techniques in Python is crucial for automating the manipulation of AWS resources. This approach not only enables the efficient management of AWS resources but also promotes code reusability, significantly reducing the likelihood of errors in the data pipeline. By employing "boto3" and embracing OOP principles, we enhance the maintainability and scalability of our code while automating AWS-related tasks with precision and reliability.
